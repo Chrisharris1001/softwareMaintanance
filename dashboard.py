@@ -125,6 +125,10 @@ class IMS:
         ).pack(side=TOP, fill=X)
 
         # ----------- content ----------------
+        # --- Low Stock Alert Label ---
+        self.lbl_alert = Label(self.root, text="", font=("goudy old style", 15, "bold"), bg="#2c3e50", fg="white")
+        self.lbl_alert.place(x=200, y=550, width=1100, height=40) # Adjust x, y to fit your screen layout
+
         self.lbl_employee = Label(
             self.root, text="Total Employee\n{ 0 }",
             bd=5, relief=RIDGE, bg="#33bbf9",
@@ -193,7 +197,6 @@ class IMS:
 
     def update_content(self):
         try:
-
             product_count = fetch_query("SELECT COUNT(*) FROM product")[0][0]
             self.lbl_product.config(text=f"Total Product\n[ {product_count} ]")
 
@@ -214,11 +217,33 @@ class IMS:
             self.lbl_clock.config(
                 text=f"Welcome to Inventory Management System\t\t Date: {date_}\t\t Time: {time_}"
             )
+            self.get_low_stock()
 
             self.lbl_clock.after(200, self.update_content)
 
         except Exception as ex:
             messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
+
+    def get_low_stock(self):
+        try:
+            # 1. Fetch products where quantity is less than 10
+            query = "SELECT name, qty FROM product WHERE qty < 10 AND status='Active'"
+            low_stock_data = fetch_query(query)
+
+            # 2. Format the data for the UI
+            if low_stock_data:
+                alert_text = "⚠️ LOW STOCK ALERT: "
+                # Join the product names together: "Product A (5), Product B (2)"
+                items = [f"{row[0]} ({row[1]})" for row in low_stock_data]
+                alert_text += " | ".join(items)
+
+                # Update a label (we will create this label in Step 2)
+                self.lbl_alert.config(text=alert_text, fg="white", bg="#de3545") # Red background
+            else:
+                self.lbl_alert.config(text="✅ All stock levels are healthy", fg="white", bg="#28a745") # Green background
+
+        except Exception as ex:
+            print(f"Alert Error: {str(ex)}")
 
 
 if __name__ == "__main__":
