@@ -1,12 +1,12 @@
 from tkinter import*
 from PIL import Image,ImageTk
 from tkinter import ttk,messagebox
-import sqlite3
 import time
 import os
 import tempfile
+from db_helper import fetch_query, execute_query
 
-class billClass:
+class BillClass:
     def __init__(self,root):
         self.root=root
         self.root.geometry("1350x700+110+80")
@@ -219,35 +219,77 @@ class billClass:
         result=self.var_cal_input.get()
         self.var_cal_input.set(eval(result))
 
+    # def show(self):
+    #     con=sqlite3.connect(database=r'ims.db')
+    #     cur=con.cursor()
+    #     try:
+    #         cur.execute("select pid,name,price,qty,status from product where status='Active'")
+    #         rows=cur.fetchall()
+    #         self.product_Table.delete(*self.product_Table.get_children())
+    #         for row in rows:
+    #             self.product_Table.insert('',END,values=row)
+    #     except Exception as ex:
+    #         messagebox.showerror("Error",f"Error due to : {str(ex)}")
     def show(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            cur.execute("select pid,name,price,qty,status from product where status='Active'")
-            rows=cur.fetchall()
+            # 1. Fetch active products using the helper
+            fetch_query_str = "SELECT pid, name, price, qty, status FROM product WHERE status='Active'"
+            rows = fetch_query(fetch_query_str)
+
+            # 2. Clear the existing table data
+            self.product_Table.delete(*self.product_Table.get_children())
+
+            # 3. Insert the fresh data into the table
+            for row in rows:
+                self.product_Table.insert('', END, values=row)
+
+        except Exception as ex:
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
+
+    # def search(self):
+    #     con=sqlite3.connect(database=r'ims.db')
+    #     cur=con.cursor()
+    #     try:
+    #         if self.var_search.get()=="":
+    #             messagebox.showerror("Error","Search input should be required",parent=self.root)
+    #         else:
+    #             cur.execute("select pid,name,price,qty,status from product where name LIKE '%"+self.var_search.get()+"%'")
+    #             rows=cur.fetchall()
+    #             if len(rows)!=0:
+    #                 self.product_Table.delete(*self.product_Table.get_children())
+    #                 for row in rows:
+    #                     self.product_Table.insert('',END,values=row)
+    #             else:
+    #                 messagebox.showerror("Error","No record found!!!",parent=self.root)
+    #     except Exception as ex:
+    #         messagebox.showerror("Error",f"Error due to : {str(ex)}")
+    def search(self):
+        try:
+            # 1. Validation with Early Return
+            if self.var_search.get() == "":
+                messagebox.showerror("Error", "Search input should be required", parent=self.root)
+                return
+
+            # 2. Construct the query securely to prevent SQL Injection
+            search_query = "SELECT pid, name, price, qty, status FROM product WHERE name LIKE ?"
+            search_text = f"%{self.var_search.get()}%"  # The % wildcards go inside the tuple parameter
+
+            # Execute the search using the helper
+            rows = fetch_query(search_query, (search_text,))
+
+            # 3. Check if any records were found using an Early Return
+            if not rows:
+                messagebox.showerror("Error", "No record found!!!", parent=self.root)
+                return
+
+            # 4. Success: Clear the table and insert the found data
             self.product_Table.delete(*self.product_Table.get_children())
             for row in rows:
-                self.product_Table.insert('',END,values=row)
-        except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+                # Using 'end' instead of END just in case the tkinter constant isn't imported
+                self.product_Table.insert('', 'end', values=row)
 
-    def search(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
-        try:
-            if self.var_search.get()=="":
-                messagebox.showerror("Error","Search input should be required",parent=self.root)
-            else:
-                cur.execute("select pid,name,price,qty,status from product where name LIKE '%"+self.var_search.get()+"%'")
-                rows=cur.fetchall()
-                if len(rows)!=0:
-                    self.product_Table.delete(*self.product_Table.get_children())
-                    for row in rows:
-                        self.product_Table.insert('',END,values=row)
-                else:
-                    messagebox.showerror("Error","No record found!!!",parent=self.root)
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
     def get_data(self,ev):
         f=self.product_Table.focus()
@@ -369,32 +411,63 @@ class billClass:
 '''
         self.txt_bill_area.insert(END,bill_bottom_temp)
 
+    # def bill_middle(self):
+    #     con=sqlite3.connect(database=r'ims.db')
+    #     cur=con.cursor()
+    #     try:
+    #         for row in self.cart_list:
+    #             pid=row[0]
+    #             name=row[1]
+    #             qty=int(row[4])-int(row[3])
+    #             if int(row[3])==int(row[4]):
+    #                 status="Inactive"
+    #             if int(row[3])!=int(row[4]):
+    #                 status="Active"
+    #             price=float(row[2])*int(row[3])
+    #             price=str(price)
+    #             self.txt_bill_area.insert(END,"\n "+name+"\t\t\t"+row[3]+"\tRs."+price)
+    #             #------------- update qty in product table --------------
+    #             cur.execute("update product set qty=?,status=? where pid=?",(
+    #                 qty,
+    #                 status,
+    #                 pid
+    #             ))
+    #             con.commit()
+    #         con.close()
+    #         self.show()
+    #     except Exception as ex:
+    #         messagebox.showerror("Error",f"Error due to : {str(ex)}",parent=self.root)
     def bill_middle(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
             for row in self.cart_list:
-                pid=row[0]
-                name=row[1]
-                qty=int(row[4])-int(row[3])
-                if int(row[3])==int(row[4]):
-                    status="Inactive"
-                if int(row[3])!=int(row[4]):
-                    status="Active"
-                price=float(row[2])*int(row[3])
-                price=str(price)
-                self.txt_bill_area.insert(END,"\n "+name+"\t\t\t"+row[3]+"\tRs."+price)
-                #------------- update qty in product table --------------
-                cur.execute("update product set qty=?,status=? where pid=?",(
-                    qty,
-                    status,
-                    pid
-                ))
-                con.commit()
-            con.close()
+                # Extract variables for readability
+                pid = row[0]
+                name = row[1]
+                item_price = float(row[2])
+                cart_qty = int(row[3])
+                stock_qty = int(row[4])
+
+                # Calculate remaining quantity
+                new_qty = stock_qty - cart_qty
+
+                # Simplify status check: if stock hits 0, it becomes Inactive
+                status = "Inactive" if new_qty == 0 else "Active"
+
+                # Calculate total price for this row
+                total_item_price = str(item_price * cart_qty)
+
+                # Update the UI Bill text area using a clean f-string
+                self.txt_bill_area.insert('end', f"\n {name}\t\t\t{cart_qty}\tRs.{total_item_price}")
+
+                # Update the quantity and status in the product database
+                update_query = "UPDATE product SET qty=?, status=? WHERE pid=?"
+                execute_query(update_query, (new_qty, status, pid))
+
+            # Refresh the product table display after all updates are done
             self.show()
+
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}",parent=self.root)
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
     def clear_cart(self):
         self.var_pid.set("")
@@ -433,5 +506,5 @@ class billClass:
 
 if __name__=="__main__":
     root=Tk()
-    obj=billClass(root)
+    obj=BillClass(root)
     root.mainloop()

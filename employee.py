@@ -1,9 +1,9 @@
 from tkinter import*
 from PIL import Image,ImageTk
 from tkinter import ttk,messagebox
-import sqlite3
+from db_helper import execute_query, fetch_query
 
-class employeeClass:
+class EmployeeClass:
     def __init__(self,root):
         self.root=root
         self.root.geometry("1100x500+320+220")
@@ -127,118 +127,144 @@ class employeeClass:
         self.EmployeeTable.bind("<ButtonRelease-1>",self.get_data)
         self.show()
 #-----------------------------------------------------------------------------------------------------
+
     def add(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            if self.var_emp_id.get()=="":
-                messagebox.showerror("Error","Employee ID must be required",parent=self.root)
-            else:
-                cur.execute("Select * from employee where eid=?",(self.var_emp_id.get(),))
-                row=cur.fetchone()
-                if row!=None:
-                    messagebox.showerror("Error","This Employee ID is already assigned",parent=self.root)
-                else:
-                    cur.execute("insert into employee(eid,name,email,gender,contact,dob,doj,pass,utype,address,salary) values(?,?,?,?,?,?,?,?,?,?,?)",(
-                        self.var_emp_id.get(),
-                        self.var_name.get(),
-                        self.var_email.get(),
-                        self.var_gender.get(),
-                        self.var_contact.get(),
-                        self.var_dob.get(),
-                        self.var_doj.get(),
-                        self.var_pass.get(),
-                        self.var_utype.get(),
-                        self.txt_address.get('1.0',END),
-                        self.var_salary.get(),
-                    ))
-                    con.commit()
-                    messagebox.showinfo("Success","Employee Added Successfully",parent=self.root)
-                    self.clear()
-                    self.show()
+            if self.var_emp_id.get() == "":
+                messagebox.showerror("Error", "Employee ID must be required", parent=self.root)
+                return  # Stop the function here if there's an error
+
+            check_query = "SELECT * FROM employee WHERE eid=?"
+            existing_employee = fetch_query(check_query, (self.var_emp_id.get(),))
+
+            if existing_employee:
+                messagebox.showerror("Error", "This Employee ID is already assigned", parent=self.root)
+                return  # Stop the function here
+
+            insert_query = """INSERT INTO employee (eid, name, email, gender, contact, dob, doj, pass, utype, address, salary) 
+                          VALUES (?,?,?,?,?,?,?,?,?,?,?)"""
+
+            insert_values = (
+                self.var_emp_id.get(),
+                self.var_name.get(),
+                self.var_email.get(),
+                self.var_gender.get(),
+                self.var_contact.get(),
+                self.var_dob.get(),
+                self.var_doj.get(),
+                self.var_pass.get(),
+                self.var_utype.get(),
+                self.txt_address.get('1.0', END),
+                self.var_salary.get()
+            )
+
+            execute_query(insert_query, insert_values)
+
+            messagebox.showinfo("Success", "Employee Added Successfully", parent=self.root)
+            self.clear()
+            self.show()
+
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
     def show(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            cur.execute("select * from employee")
-            rows=cur.fetchall()
+            select_query = "SELECT * FROM employee"
+            rows = fetch_query(select_query)
+
             self.EmployeeTable.delete(*self.EmployeeTable.get_children())
             for row in rows:
-                self.EmployeeTable.insert('',END,values=row)
-        except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+                self.EmployeeTable.insert('', END, values=row)
 
-    def get_data(self,ev):
-        f=self.EmployeeTable.focus()
-        content=(self.EmployeeTable.item(f))
-        row=content['values']
-        self.var_emp_id.set(row[0])
-        self.var_name.set(row[1])
-        self.var_email.set(row[2])
-        self.var_gender.set(row[3])
-        self.var_contact.set(row[4])
-        self.var_dob.set(row[5])
-        self.var_doj.set(row[6])
-        self.var_pass.set(row[7])
-        self.var_utype.set(row[8])
-        self.txt_address.delete('1.0',END)
-        self.txt_address.insert(END,row[9])
-        self.var_salary.set(row[10])
+        except Exception as ex:
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
+
+    def get_data(self, ev):
+        try:
+            selected_item = self.EmployeeTable.focus()
+            content = self.EmployeeTable.item(selected_item)
+            row = content['values']
+
+            if row:
+                self.var_emp_id.set(row[0])
+                self.var_name.set(row[1])
+                self.var_email.set(row[2])
+                self.var_gender.set(row[3])
+                self.var_contact.set(row[4])
+                self.var_dob.set(row[5])
+                self.var_doj.set(row[6])
+                self.var_pass.set(row[7])
+                self.var_utype.set(row[8])
+                self.txt_address.delete('1.0', END)
+                self.txt_address.insert(END, row[9])
+                self.var_salary.set(row[10])
+        except Exception as ex:
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
     def update(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            if self.var_emp_id.get()=="":
-                messagebox.showerror("Error","Employee ID must be required",parent=self.root)
-            else:
-                cur.execute("Select * from employee where eid=?",(self.var_emp_id.get(),))
-                row=cur.fetchone()
-                if row==None:
-                    messagebox.showerror("Error","Invalid Employee ID",parent=self.root)
-                else:
-                    cur.execute("update employee set name=?,email=?,gender=?,contact=?,dob=?,doj=?,pass=?,utype=?,address=?,salary=? where eid=?",(
-                        self.var_name.get(),
-                        self.var_email.get(),
-                        self.var_gender.get(),
-                        self.var_contact.get(),
-                        self.var_dob.get(),
-                        self.var_doj.get(),
-                        self.var_pass.get(),
-                        self.var_utype.get(),
-                        self.txt_address.get('1.0',END),
-                        self.var_salary.get(),
-                        self.var_emp_id.get(),
-                    ))
-                    con.commit()
-                    messagebox.showinfo("Success","Employee Updated Successfully",parent=self.root)
-                    self.show()
+            if self.var_emp_id.get() == "":
+                messagebox.showerror("Error", "Employee ID must be required", parent=self.root)
+                return
+
+            check_query = "SELECT * FROM employee WHERE eid=?"
+            existing_employee = fetch_query(check_query, (self.var_emp_id.get(),))
+
+            if not existing_employee:
+                messagebox.showerror("Error", "Invalid Employee ID. Cannot update.", parent=self.root)
+                return
+
+            update_query = """UPDATE employee SET 
+                          name=?, email=?, gender=?, contact=?, dob=?, doj=?, 
+                          pass=?, utype=?, address=?, salary=? 
+                          WHERE eid=?"""
+
+            update_values = (
+                self.var_name.get(),
+                self.var_email.get(),
+                self.var_gender.get(),
+                self.var_contact.get(),
+                self.var_dob.get(),
+                self.var_doj.get(),
+                self.var_pass.get(),
+                self.var_utype.get(),
+                self.txt_address.get('1.0', 'end'),
+                self.var_salary.get(),
+                self.var_emp_id.get()
+            )
+
+            execute_query(update_query, update_values)
+
+            messagebox.showinfo("Success", "Employee Updated Successfully", parent=self.root)
+            self.show()
+
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
     def delete(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            if self.var_emp_id.get()=="":
-                messagebox.showerror("Error","Employee ID must be required",parent=self.root)
-            else:
-                cur.execute("Select * from employee where eid=?",(self.var_emp_id.get(),))
-                row=cur.fetchone()
-                if row==None:
-                    messagebox.showerror("Error","Invalid Employee ID",parent=self.root)
-                else:
-                    op=messagebox.askyesno("Confirm","Do you really want to delete?",parent=self.root)
-                    if op==True:
-                        cur.execute("delete from employee where eid=?",(self.var_emp_id.get(),))
-                        con.commit()
-                        messagebox.showinfo("Delete","Employee Deleted Successfully",parent=self.root)
-                        self.clear()
+            if self.var_emp_id.get() == "":
+                messagebox.showerror("Error", "Employee ID must be required", parent=self.root)
+                return
+
+            check_query = "SELECT * FROM employee WHERE eid=?"
+            existing_employee = fetch_query(check_query, (self.var_emp_id.get(),))
+
+            if not existing_employee:
+                messagebox.showerror("Error", "Invalid Employee ID.", parent=self.root)
+                return
+
+            op = messagebox.askyesno("Confirm", "Do you really want to delete?", parent=self.root)
+            if op == True:
+                delete_query = "DELETE FROM employee WHERE eid=?"
+                execute_query(delete_query, (self.var_emp_id.get(),))
+
+                messagebox.showinfo("Delete", "Employee Deleted Successfully", parent=self.root)
+                self.clear()
+                self.show()
+
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
     def clear(self):
         self.var_emp_id.set("")
@@ -257,27 +283,34 @@ class employeeClass:
         self.show()
 
     def search(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            if self.var_searchby.get()=="Select":
-                messagebox.showerror("Error","Select Search By option",parent=self.root)
-            elif self.var_searchtxt.get()=="":
-                messagebox.showerror("Error","Search input should be required",parent=self.root)
-            else:
-                cur.execute("select * from employee where "+self.var_searchby.get()+" LIKE '%"+self.var_searchtxt.get()+"%'")
-                rows=cur.fetchall()
-                if len(rows)!=0:
-                    self.EmployeeTable.delete(*self.EmployeeTable.get_children())
-                    for row in rows:
-                        self.EmployeeTable.insert('',END,values=row)
-                else:
-                    messagebox.showerror("Error","No record found!!!",parent=self.root)
+            if self.var_searchby.get() == "Select":
+                messagebox.showerror("Error", "Select Search By option", parent=self.root)
+                return
+
+            if self.var_searchtxt.get() == "":
+                messagebox.showerror("Error", "Search input should be required", parent=self.root)
+                return
+
+            search_column = self.var_searchby.get()
+            search_text = f"%{self.var_searchtxt.get()}%"
+
+            search_query = f"SELECT * FROM employee WHERE {search_column} LIKE ?"
+            rows = fetch_query(search_query, (search_text,))
+
+            if not rows:
+                messagebox.showerror("Error", "No record found!!!", parent=self.root)
+                return
+
+            self.EmployeeTable.delete(*self.EmployeeTable.get_children())
+            for row in rows:
+                self.EmployeeTable.insert('', END, values=row)
+
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
 
 if __name__=="__main__":
     root=Tk()
-    obj=employeeClass(root)
+    obj=EmployeeClass(root)
     root.mainloop()

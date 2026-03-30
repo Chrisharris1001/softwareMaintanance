@@ -2,14 +2,14 @@ from tkinter import *
 from PIL import Image, ImageTk
 from tkinter import messagebox
 import time
-import sqlite3
 import os
 
-from employee import employeeClass
-from supplier import supplierClass
-from category import categoryClass
-from product import productClass
-from sales import salesClass
+from employee import EmployeeClass
+from supplier import SupplierClass
+from category import CategoryClass
+from product import ProductClass
+from sales import SalesClass
+from db_helper import fetch_query, execute_query
 
 # ------------------ BASE PATH SETUP ------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -173,47 +173,41 @@ class IMS:
     # -------------- functions ----------------
     def employee(self):
         self.new_win = Toplevel(self.root)
-        self.new_obj = employeeClass(self.new_win)
+        self.new_obj = EmployeeClass(self.new_win)
 
     def supplier(self):
         self.new_win = Toplevel(self.root)
-        self.new_obj = supplierClass(self.new_win)
+        self.new_obj = SupplierClass(self.new_win)
 
     def category(self):
         self.new_win = Toplevel(self.root)
-        self.new_obj = categoryClass(self.new_win)
+        self.new_obj = CategoryClass(self.new_win)
 
     def product(self):
         self.new_win = Toplevel(self.root)
-        self.new_obj = productClass(self.new_win)
+        self.new_obj = ProductClass(self.new_win)
 
     def sales(self):
         self.new_win = Toplevel(self.root)
-        self.new_obj = salesClass(self.new_win)
+        self.new_obj = SalesClass(self.new_win)
 
     def update_content(self):
-        con = sqlite3.connect(database=os.path.join(BASE_DIR, 'ims.db'))
-        cur = con.cursor()
-
         try:
-            cur.execute("select * from product")
-            product = cur.fetchall()
-            self.lbl_product.config(text=f"Total Product\n[ {len(product)} ]")
 
-            cur.execute("select * from category")
-            category = cur.fetchall()
-            self.lbl_category.config(text=f"Total Category\n[ {len(category)} ]")
+            product_count = fetch_query("SELECT COUNT(*) FROM product")[0][0]
+            self.lbl_product.config(text=f"Total Product\n[ {product_count} ]")
 
-            cur.execute("select * from employee")
-            employee = cur.fetchall()
-            self.lbl_employee.config(text=f"Total Employee\n[ {len(employee)} ]")
+            category_count = fetch_query("SELECT COUNT(*) FROM category")[0][0]
+            self.lbl_category.config(text=f"Total Category\n[ {category_count} ]")
 
-            cur.execute("select * from supplier")
-            supplier = cur.fetchall()
-            self.lbl_supplier.config(text=f"Total Supplier\n[ {len(supplier)} ]")
+            employee_count = fetch_query("SELECT COUNT(*) FROM employee")[0][0]
+            self.lbl_employee.config(text=f"Total Employee\n[ {employee_count} ]")
 
-            bill = len(os.listdir(BILL_DIR))
-            self.lbl_sales.config(text=f"Total Sales\n[ {bill} ]")
+            supplier_count = fetch_query("SELECT COUNT(*) FROM supplier")[0][0]
+            self.lbl_supplier.config(text=f"Total Supplier\n[ {supplier_count} ]")
+
+            bill_count = len(os.listdir(BILL_DIR))
+            self.lbl_sales.config(text=f"Total Sales\n[ {bill_count} ]")
 
             time_ = time.strftime("%I:%M:%S")
             date_ = time.strftime("%d-%m-%Y")

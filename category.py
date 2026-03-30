@@ -1,9 +1,10 @@
 from tkinter import*
 from PIL import Image,ImageTk
 from tkinter import ttk,messagebox
-import sqlite3
+from db_helper import fetch_query, execute_query
+import os
 
-class categoryClass:
+class CategoryClass:
     def __init__(self,root):
         self.root=root
         self.root.geometry("1100x500+320+220")
@@ -28,8 +29,8 @@ class categoryClass:
         cat_frame.place(x=700,y=100,width=380,height=100)
 
         scrolly=Scrollbar(cat_frame,orient=VERTICAL)
-        scrollx=Scrollbar(cat_frame,orient=HORIZONTAL)\
-        
+        scrollx=Scrollbar(cat_frame,orient=HORIZONTAL)
+
         self.CategoryTable=ttk.Treeview(cat_frame,columns=("cid","name"),yscrollcommand=scrolly.set,xscrollcommand=scrollx.set)
         scrollx.pack(side=BOTTOM,fill=X)
         scrolly.pack(side=RIGHT,fill=Y)
@@ -46,51 +47,74 @@ class categoryClass:
         self.show()
 
         #----------------- images ---------------------
-        self.im1=Image.open("Inventory-Management-System/images/cat.jpg")
-        self.im1=self.im1.resize((500,250))
-        self.im1=ImageTk.PhotoImage(self.im1)
-        self.lbl_im1=Label(self.root,image=self.im1,bd=2,relief=RAISED)
-        self.lbl_im1.place(x=50,y=220)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
 
-        self.im2=Image.open("Inventory-Management-System/images/category.jpg")
-        self.im2=self.im2.resize((500,250))
-        self.im2=ImageTk.PhotoImage(self.im2)
-        self.lbl_im2=Label(self.root,image=self.im2,bd=2,relief=RAISED)
-        self.lbl_im2.place(x=580,y=220)
+        def load_image(rel_path, size=(500, 250)):
+
+            candidates = [
+                os.path.join(base_dir, rel_path),
+                os.path.join(base_dir, "Inventory-Management-System", rel_path),
+                os.path.join(base_dir, "Inventory-Management-System", "images", os.path.basename(rel_path)),
+                os.path.join(base_dir, "images", os.path.basename(rel_path)),
+                os.path.join(base_dir, os.path.basename(rel_path)),
+            ]
+            for p in candidates:
+                try:
+                    if os.path.exists(p):
+                        img = Image.open(p)
+                        img = img.resize(size)
+                        return ImageTk.PhotoImage(img)
+                except Exception:
+                    continue
+            img = Image.new("RGB", size, (220, 220, 220))
+            return ImageTk.PhotoImage(img)
+
+        self.im1 = load_image("Inventory-Management-System/images/cat.jpg")
+        self.lbl_im1 = Label(self.root, image=self.im1, bd=2, relief=RAISED)
+        self.lbl_im1.place(x=50, y=220)
+
+        self.im2 = load_image("Inventory-Management-System/images/category.jpg")
+        self.lbl_im2 = Label(self.root, image=self.im2, bd=2, relief=RAISED)
+        self.lbl_im2.place(x=580, y=220)
 #----------------------------------------------------------------------------------
+
     def add(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            if self.var_name.get()=="":
-                messagebox.showerror("Error","Category Name must be required",parent=self.root)
-            else:
-                cur.execute("Select * from category where name=?",(self.var_name.get(),))
-                row=cur.fetchone()
-                if row!=None:
-                    messagebox.showerror("Error","Category already present",parent=self.root)
-                else:
-                    cur.execute("insert into category(name) values(?)",(
-                        self.var_name.get(),
-                    ))
-                    con.commit()
-                    messagebox.showinfo("Success","Category Added Successfully",parent=self.root)
-                    self.clear()
-                    self.show()
+            if self.var_name.get() == "":
+                messagebox.showerror("Error", "Category Name must be required", parent=self.root)
+                return
+
+            check_query = "SELECT * FROM category WHERE name=?"
+            existing_category = fetch_query(check_query, (self.var_name.get(),))
+
+            if existing_category:
+                messagebox.showerror("Error", "Category already present", parent=self.root)
+                return
+
+            insert_query = "INSERT INTO category (name) VALUES (?)"
+
+            execute_query(insert_query, (self.var_name.get(),))
+
+            messagebox.showinfo("Success", "Category Added Successfully", parent=self.root)
+            self.clear()
+            self.show()
+
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
+
 
     def show(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            cur.execute("select * from category")
-            rows=cur.fetchall()
+            fetch_all_query = "SELECT * FROM category"
+            rows = fetch_query(fetch_all_query)
+
             self.CategoryTable.delete(*self.CategoryTable.get_children())
+
             for row in rows:
-                self.CategoryTable.insert('',END,values=row)
+                self.CategoryTable.insert('', END, values=row)
+
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
     
     def clear(self):
@@ -104,32 +128,36 @@ class categoryClass:
         self.var_cat_id.set(row[0])
         self.var_name.set(row[1])
     
+
     def delete(self):
-        con=sqlite3.connect(database=r'ims.db')
-        cur=con.cursor()
         try:
-            if self.var_cat_id.get()=="":
-                messagebox.showerror("Error","Category name must be required",parent=self.root)
-            else:
-                cur.execute("Select * from category where cid=?",(self.var_cat_id.get(),))
-                row=cur.fetchone()
-                if row==None:
-                    messagebox.showerror("Error","Invalid Category Name",parent=self.root)
-                else:
-                    op=messagebox.askyesno("Confirm","Do you really want to delete?",parent=self.root)
-                    if op==True:
-                        cur.execute("delete from category where cid=?",(self.var_cat_id.get(),))
-                        con.commit()
-                        messagebox.showinfo("Delete","Category Deleted Successfully",parent=self.root)
-                        self.clear()
-                        self.var_cat_id.set("")
-                        self.var_name.set("")
+            if self.var_cat_id.get() == "":
+                messagebox.showerror("Error", "Category name must be required", parent=self.root)
+                return
+
+            check_query = "SELECT * FROM category WHERE cid=?"
+            existing_category = fetch_query(check_query, (self.var_cat_id.get(),))
+
+            if not existing_category:
+                messagebox.showerror("Error", "Invalid Category Name", parent=self.root)
+                return
+
+            op = messagebox.askyesno("Confirm", "Do you really want to delete?", parent=self.root)
+            if op == True:
+                delete_query = "DELETE FROM category WHERE cid=?"
+                execute_query(delete_query, (self.var_cat_id.get(),))
+
+                messagebox.showinfo("Delete", "Category Deleted Successfully", parent=self.root)
+                self.clear()
+                self.var_cat_id.set("")
+                self.var_name.set("")
+
         except Exception as ex:
-            messagebox.showerror("Error",f"Error due to : {str(ex)}")
+            messagebox.showerror("Error", f"Error due to : {str(ex)}", parent=self.root)
 
 
 
 if __name__=="__main__":
     root=Tk()
-    obj=categoryClass(root)
+    obj=CategoryClass(root)
     root.mainloop()
